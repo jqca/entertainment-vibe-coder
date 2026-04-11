@@ -34,7 +34,7 @@ def predict_global_box_office_qml(script_nlp_tensor, sns_zeitgeist_index):
     
     print(f"Greenlight Analysis Complete.")
     print(f"Classification: {prediction_class}.")
-    print(f"Projected Opening Weekend: ${projected_opening_weekend}.")
+    print(f"Projected Opening Weekend: \\${projected_opening_weekend}.")
     print(f"Estimated ROI: {roi_multiple}x. Confidence: {model_confidence}%.")
     print("Action: Initiating $200M wire transfer to production studio.")
     
@@ -173,7 +173,7 @@ optimize_idol_group_synergy("Audition_Data_Lake", "Pop_Music_Market_Cohorts")`,
     print("Quantum Raytracing pipeline initialized.")
     print(f"Photoreal Global Illumination on 100,000 meshes computed.")
     print(f"Render Time collapsed from {render_time_original} to {render_time_quantum}.")
-    print(f"Studio Vfx Budget Saved: ${budget_saved}.")
+    print(f"Studio Vfx Budget Saved: \\${budget_saved}.")
     print("Action: Exporting raw plates to compositing department instantly.")
     
     return "RENDER_COMPLETE"

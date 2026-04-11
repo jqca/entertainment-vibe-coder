@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import type { UseCase } from '../data/useCases';
-import { Radio, Flame, Sparkles, TrendingUp, TrendingDown, Music } from 'lucide-react';
-
+import { Radio, Flame, TrendingUp, TrendingDown, Music } from 'lucide-react';
 interface Props {
   activeUseCase: UseCase;
 }
