@@ -1,0 +1,357 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
+
+:root {
+  /* Neon Cyber Pink & Spotlight Purple Theme */
+  --midnight-purple: #0f0b29; /* Extremely dark purple/black */
+  --pane-purple: #1e1b4b; /* Indigo 950 */
+  --border-purple: #312e81; /* Indigo 900 */
+  
+  --cyber-pink: #ec4899; /* Pink 500 */
+  --cyber-pink-dim: rgba(236, 72, 153, 0.2);
+  --cyber-pink-glow: #f472b6; /* Pink 400 */
+  
+  --electric-cyan: #06b6d4; /* Cyan 500 */
+  --electric-cyan-dim: rgba(6, 182, 212, 0.15);
+  --electric-cyan-glow: #22d3ee;
+  
+  --text-main: #fdf4ff; /* Fuchsia 50 */
+  --text-muted: #cbd5e1; /* Slate 300 */
+  
+  --bg-color: var(--midnight-purple);
+  --pane-bg: var(--pane-purple);
+  --border-color: var(--border-purple);
+  
+  --ui-color: var(--electric-cyan);
+  --ui-bg: var(--electric-cyan-dim);
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  font-family: 'Outfit', sans-serif;
+  overflow: hidden;
+  /* subtle starlight / club laser background */
+  background-image: 
+    radial-gradient(circle at 15% 50%, rgba(236, 72, 153, 0.08), transparent 25%),
+    radial-gradient(circle at 85% 30%, rgba(6, 182, 212, 0.08), transparent 25%);
+}
+
+.app-container {
+  display: flex;
+  height: 100vh;
+  gap: 16px;
+  padding: 16px;
+  box-sizing: border-box;
+  transition: all 0.4s ease;
+}
+
+.app-container.viral-mode {
+  /* Megahit / Viral Sensation State */
+  --ui-color: var(--cyber-pink);
+  --ui-bg: var(--cyber-pink-dim);
+  --border-color: #831843; /* Pink 900 */
+  animation: club-strobe 0.8s infinite alternate;
+}
+
+@keyframes club-strobe {
+  0% { box-shadow: inset 0 0 0px 0px rgba(236, 72, 153, 0); }
+  100% { box-shadow: inset 0 0 150px 0px rgba(236, 72, 153, 0.15); }
+}
+
+.pane {
+  background-color: rgba(30, 27, 75, 0.85); /* Slightly transparent for the gradient to show */
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+}
+.pane::before {
+  content: "";
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, transparent, var(--ui-color), transparent);
+  transition: background 0.4s;
+}
+
+.left-pane { flex: 1; }
+.center-pane { flex: 1.2; }
+.right-pane { flex: 1; }
+
+.pane-title {
+  margin: 0 0 16px 0;
+  font-size: 1.3rem;
+  font-weight: 900;
+  color: var(--ui-color);
+  font-family: 'Outfit', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-shadow: 0 0 8px var(--ui-bg);
+}
+
+/* === AIChat Styles === */
+.usecase-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-right: 8px;
+}
+.usecase-list::-webkit-scrollbar { width: 5px; }
+.usecase-list::-webkit-scrollbar-thumb { background: var(--ui-color); border-radius: 10px; }
+
+.usecase-item {
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  position: relative;
+}
+
+.usecase-item:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.4); border-color: rgba(6, 182, 212, 0.3); }
+
+.usecase-item.active {
+  background: var(--ui-bg);
+  border-color: var(--ui-color);
+  transform: scale(1.02);
+}
+.usecase-item.viral-item.active {
+  background: var(--cyber-pink-dim);
+  border-color: var(--cyber-pink);
+}
+
+.usecase-item h3 {
+  margin: 0 0 8px 0;
+  font-size: 1.05rem;
+  color: var(--text-main);
+  font-weight: 900;
+  letter-spacing: 0.5px;
+}
+.usecase-item.active h3 { color: var(--ui-color); text-shadow: 0 0 5px var(--ui-color); }
+.usecase-item.viral-item.active h3 { color: var(--cyber-pink); text-shadow: 0 0 5px var(--cyber-pink); }
+
+.usecase-item p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.prompt-area { margin-top: 16px; }
+.prompt-area form { display: flex; gap: 8px; }
+
+.prompt-area textarea {
+  flex: 1;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 12px;
+  color: var(--text-main);
+  font-family: 'Space Mono', monospace;
+  resize: none;
+  height: 60px;
+  font-size: 0.85rem;
+  outline: none;
+  transition: all 0.3s;
+}
+.prompt-area textarea:focus { border-color: var(--ui-color); box-shadow: 0 0 10px var(--ui-bg); }
+
+.btn-send {
+  background: var(--ui-color);
+  color: var(--midnight-purple);
+  border: none;
+  border-radius: 8px;
+  padding: 0 20px;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-send:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 20px var(--ui-color);
+}
+
+/* === CodeEditor Styles === */
+.code-area {
+  flex: 1;
+  background: #09090b; /* Very dark zinc */
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 16px;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  overflow-y: auto;
+  white-space: pre;
+  color: #e2e8f0;
+}
+
+.keyword { color: #c084fc; font-weight: bold; } /* Purple */
+.string { color: #f472b6; } /* Pink */
+.comment { color: #64748b; font-style: italic; }
+.function { color: #2dd4bf; font-weight: bold; } /* Teal */
+.number { color: #fbbf24; } /* Amber */
+
+/* === LivePreview Styles === */
+.preview-container { display: flex; flex-direction: column; gap: 16px; flex: 1; }
+
+.visualization-box {
+  flex: 1;
+  background: radial-gradient(circle at center, #1e1b4b 0%, #0f0b29 100%);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Global Virality Network */
+.core-node {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 40px; height: 40px;
+  background: var(--ui-color);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 30px var(--ui-color), inset 0 0 20px #fff;
+  z-index: 10;
+  transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.audience-node {
+  position: absolute;
+  width: 8px; height: 8px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: all 0.5s;
+}
+/* Plot audience randomly */
+.audience-node.n1 { top: 20%; left: 20%; }
+.audience-node.n2 { top: 30%; left: 80%; }
+.audience-node.n3 { top: 80%; left: 30%; }
+.audience-node.n4 { top: 70%; left: 70%; }
+.audience-node.n5 { top: 15%; left: 50%; }
+.audience-node.n6 { top: 85%; left: 50%; }
+.audience-node.n7 { top: 50%; left: 15%; }
+.audience-node.n8 { top: 50%; left: 85%; }
+
+/* Sine Wave Emulators */
+.sine-wave {
+  position: absolute;
+  top: 50%; left: 0; right: 0;
+  height: 2px;
+  background: var(--ui-color);
+  opacity: 0.3;
+  transform: translateY(-50%);
+  /* Mocking a sine wave using SVG/CSS would be ideal, but we'll use a pulsing bar here */
+  box-shadow: 0 0 10px var(--ui-color);
+  animation: sine-float 3s infinite ease-in-out alternate;
+}
+.sine-wave.w2 { top: 30%; animation-delay: -1.5s; }
+.sine-wave.w3 { top: 70%; animation-delay: -0.7s; }
+
+@keyframes sine-float {
+  0% { transform: translateY(-50%) scaleY(1); opacity: 0.1; }
+  100% { transform: translateY(-50%) scaleY(8); opacity: 0.3; }
+}
+
+/* The Shockwave */
+.shockwave {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 0; height: 0;
+  border: 4px solid var(--ui-color);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Viral / Hit Mode */
+.visualization-box.viral-mode .core-node {
+  background: #fff;
+  box-shadow: 0 0 50px var(--cyber-pink), 0 0 100px var(--cyber-pink);
+  transform: translate(-50%, -50%) scale(1.3);
+  animation: heartbeat 0.5s infinite alternate;
+}
+
+.visualization-box.viral-mode .audience-node {
+  background: var(--cyber-pink);
+  box-shadow: 0 0 15px var(--cyber-pink);
+  transform: translate(-50%, -50%) scale(1.5);
+}
+
+.visualization-box.viral-mode .sine-wave {
+  background: var(--cyber-pink);
+  box-shadow: 0 0 20px var(--cyber-pink);
+  animation: sine-crazy 0.5s infinite ease-in-out alternate;
+  opacity: 0.6;
+}
+
+.visualization-box.viral-mode .shockwave {
+  animation: viral-explosion 2s cubic-bezier(0.1, 0.8, 0.3, 1) infinite;
+  border-color: var(--cyber-pink);
+}
+
+@keyframes heartbeat { 100% { transform: translate(-50%, -50%) scale(1.5); } }
+@keyframes sine-crazy {
+  0% { transform: translateY(-50%) scaleY(1) skewX(0deg); opacity: 0.4; }
+  100% { transform: translateY(-50%) scaleY(20) skewX(20deg); opacity: 0.8; }
+}
+@keyframes viral-explosion {
+  0% { width: 0; height: 0; opacity: 1; border-width: 20px; }
+  50% { opacity: 0.8; }
+  100% { width: 600px; height: 600px; opacity: 0; border-width: 1px; }
+}
+
+.viz-overlay {
+  position: absolute;
+  top: 16px; left: 16px;
+  padding: 8px 12px;
+  background: rgba(15, 11, 41, 0.8);
+  border-radius: 6px;
+  border: 1px solid var(--ui-color);
+  color: var(--ui-color);
+  font-family: 'Space Mono', monospace;
+  font-size: 0.85rem;
+  font-weight: bold;
+}
+.viz-overlay.viral-mode { 
+  border-color: var(--cyber-pink); 
+  color: #fff; 
+  background: var(--cyber-pink);
+  text-shadow: none;
+  animation: pulse-badge 0.5s infinite alternate;
+}
+
+@keyframes pulse-badge { 100% { transform: scale(1.05); } }
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.metric-card {
+  background: rgba(30, 27, 75, 0.6);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.metric-label { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.5px; opacity: 0.8;}
+.metric-value { font-family: 'Outfit', sans-serif; font-size: 2rem; font-weight: 900; color: var(--ui-color); margin-top: 4px; }
+.metric-card.viral-mode .metric-value { color: var(--cyber-pink); text-shadow: 0 0 10px rgba(236, 72, 153, 0.5); }
