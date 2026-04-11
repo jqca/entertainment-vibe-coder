@@ -1,36 +1,88 @@
 import { useState } from 'react';
+import { Clapperboard, Code2, Activity } from 'lucide-react';
 import './index.css';
 import { useCases } from './data/useCases';
+import type { UseCase } from './data/useCases';
 import AIChat from './components/AIChat';
 import CodeEditor from './components/CodeEditor';
 import LivePreview from './components/LivePreview';
 
+type AppState = 'idle' | 'selected' | 'generating' | 'complete';
+
 function App() {
-  const [activeId, setActiveId] = useState<string>(useCases[0].id);
-  const activeUseCase = useCases.find((uc) => uc.id === activeId) || useCases[0];
+  const [activeUseCase, setActiveUseCase] = useState<UseCase | null>(null);
+  const [appState, setAppState] = useState<AppState>('idle');
+  const [generatedCode, setGeneratedCode] = useState('');
 
   const handleSelect = (id: string) => {
-    setActiveId(id);
+    const uc = useCases.find((u) => u.id === id) || null;
+    setActiveUseCase(uc);
+    setAppState('selected');
+    // Reset code when selecting a new usecase
+    setGeneratedCode('');
   };
 
-  // Mega hits, virality, and intense emotional optimization trigger Viral Cyber Pink mode
-  const isViralMode = activeUseCase.id.includes('prediction') || activeUseCase.id.includes('dopamine') || activeUseCase.id.includes('arbitrage') || activeUseCase.id.includes('hook') || activeUseCase.id.includes('story');
+  const handleGenerate = () => {
+    if (!activeUseCase) return;
+    setAppState('generating');
+    setGeneratedCode(activeUseCase.codeSnippet);
+  };
+
+  const handleCodeComplete = () => {
+    setAppState('complete');
+  };
+
+  const isLongevity = activeUseCase
+    ? activeUseCase.id.includes('vqe') || activeUseCase.id.includes('qaoa') || activeUseCase.id.includes('walk') || activeUseCase.id.includes('epigenetic')
+    : false;
 
   return (
-    <div className={`app-container ${isViralMode ? 'viral-mode' : ''}`}>
-      <div className="pane left-pane">
-        <h2 className="pane-title">Creator Console</h2>
-        <AIChat useCases={useCases} activeId={activeId} onSelect={handleSelect} />
-      </div>
-      
-      <div className="pane center-pane">
-        <h2 className="pane-title">Media AI Core</h2>
-        <CodeEditor code={activeUseCase.codeSnippet} />
+    <div className={`app-container${isLongevity ? ' longevity-focus' : ''}`}>
+      {/* Left Pane: Entertainment DX */}
+      <div className="pane glass-panel" style={{ flex: '0 0 340px' }}>
+        <div className="pane-header">
+          <Clapperboard size={18} color="var(--quantum-green)" />
+          <span>Entertainment DX</span>
+        </div>
+        <div className="pane-content" style={{ display: 'flex', flexDirection: 'column' }}>
+          <AIChat
+            useCases={useCases}
+            activeId={activeUseCase?.id || ''}
+            onSelect={handleSelect}
+            prompt={activeUseCase?.prompt || ''}
+            onGenerate={handleGenerate}
+            isGenerating={appState === 'generating'}
+          />
+        </div>
       </div>
 
-      <div className="pane right-pane">
-        <h2 className="pane-title">Global Virality</h2>
-        <LivePreview activeUseCase={activeUseCase} />
+      {/* Center Pane: Creative Engine */}
+      <div className="pane glass-panel" style={{ flex: '1' }}>
+        <div className="pane-header">
+          <Code2 size={18} color="var(--quantum-blue)" />
+          <span>Creative Engine</span>
+        </div>
+        <div className="pane-content" style={{ display: 'flex', flexDirection: 'column' }}>
+          <CodeEditor
+            code={generatedCode}
+            isGenerating={appState === 'generating'}
+            onComplete={handleCodeComplete}
+          />
+        </div>
+      </div>
+
+      {/* Right Pane: Live Stage */}
+      <div className="pane glass-panel" style={{ flex: '1' }}>
+        <div className="pane-header">
+          <Activity size={18} color="var(--text-main)" />
+          <span>Live Stage</span>
+        </div>
+        <div className="pane-content" style={{ display: 'flex', flexDirection: 'column' }}>
+          <LivePreview
+            activeUseCase={activeUseCase}
+            appState={appState}
+          />
+        </div>
       </div>
     </div>
   );
