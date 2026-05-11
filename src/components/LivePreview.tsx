@@ -1,279 +1,350 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import type { UseCase } from '../data/useCases';
-import { HeartPulse, Play, CheckCircle2, ChevronDown, ChevronUp, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Truck, TrendingUp, TrendingDown, Zap, ShieldCheck, Target, Play, RotateCcw } from 'lucide-react';
+import VizCanvas, { getVizType } from './VizCanvas';
+
+const parseToSeconds = (timeStr: string): number | null => {
+  if (!timeStr) return null;
+  if (/即時|リアルタイム/.test(timeStr)) return 0.05;
+  if (/日次|翌朝/.test(timeStr)) return 86400;
+  const weekMatch = timeStr.match(/([\d.]+)\s*週間/);
+  if (weekMatch) return parseFloat(weekMatch[1]) * 7 * 86400;
+  const monthMatch = timeStr.match(/([\d.]+)\s*[ヶヵ]月/);
+  if (monthMatch) return parseFloat(monthMatch[1]) * 30 * 86400;
+  const numMatch = timeStr.match(/([\d.]+)/);
+  if (!numMatch) return null;
+  const num = parseFloat(numMatch[1]);
+  if (timeStr.includes('ms')) return num / 1000;
+  if (timeStr.includes('秒')) return num;
+  if (timeStr.includes('分')) return num * 60;
+  if (timeStr.includes('時間')) return num * 3600;
+  if (timeStr.includes('日')) return num * 86400;
+  return num;
+};
+
+const fmtTime = (sec: number): string => {
+  if (sec < 0.001) return `${(sec * 1_000_000).toFixed(0)}us`;
+  if (sec < 1)     return `${(sec * 1000).toFixed(0)}ms`;
+  if (sec < 60)    return `${sec < 10 ? sec.toFixed(2) : sec.toFixed(1)}秒`;
+  if (sec < 3600)  return `${(sec / 60).toFixed(1)}分`;
+  if (sec < 86400) return `${(sec / 3600).toFixed(1)}時間`;
+  if (sec < 86400 * 30) return `${(sec / 86400).toFixed(1)}日`;
+  return `${(sec / (86400 * 30)).toFixed(1)}ヶ月`;
+};
 
 interface Props {
-  activeUseCase: UseCase | null;
-  appState: 'idle' | 'selected' | 'generating' | 'complete';
+  activeUseCase: UseCase;
 }
 
-type OptState = 'ready' | 'optimizing' | 'done';
+const LivePreview: React.FC<Props> = ({ activeUseCase }) => {
+  const [optimizationLevel, setOptimizationLevel] = useState(50);
+  const [dataSize, setDataSize] = useState(5000);
+  const [isRunning, setIsRunning] = useState(false);
+  const [isOptimized, setIsOptimized] = useState(false);
+  const [selectedNode, setSelectedNode] = useState<string | null>(null);
+  const [useQuantum, setUseQuantum] = useState(true);
+  const [progress, setProgress] = useState(0);
 
-const LivePreview: React.FC<Props> = ({ activeUseCase, appState }) => {
-  const [optState, setOptState] = useState<OptState>('ready');
-  const [validationOpen, setValidationOpen] = useState(false);
+  const isActionMode = activeUseCase.id.includes('esports') || activeUseCase.id.includes('matchmaking') || activeUseCase.id.includes('moderation') || activeUseCase.id.includes('churn');
 
   useEffect(() => {
-    setOptState('ready');
-    setValidationOpen(false);
-  }, [activeUseCase?.id, appState]);
+    setIsOptimized(false);
+    setIsRunning(false);
+    setSelectedNode(null);
+    setProgress(0);
+    setOptimizationLevel(50);
+    setDataSize(5000);
+  }, [activeUseCase.id]);
 
-  const handleOptimize = () => {
-    if (optState !== 'ready') return;
-    setOptState('optimizing');
-    setTimeout(() => setOptState('done'), 3000);
+  const statusClass = isActionMode || isOptimized ? 'action-mode' : '';
+
+  const getTrendIcon = (trend: string, active: boolean) => {
+    const color = active ? "#eab308" : "#2dd4bf";
+    if (trend === 'up') return <TrendingUp size={20} color={color} />;
+    if (trend === 'down') return <TrendingDown size={20} color={color} />;
+    return <Truck size={20} color={color} />;
   };
 
-  const isLongevity = activeUseCase
-    ? activeUseCase.id.includes('vqe') || activeUseCase.id.includes('qaoa') || activeUseCase.id.includes('walk') || activeUseCase.id.includes('epigenetic')
-    : false;
-  const accent = isLongevity ? 'var(--quantum-pink)' : 'var(--quantum-green)';
-  const accentGlow = isLongevity ? 'rgba(244,114,182,0.3)' : 'rgba(0,255,157,0.3)';
+  const handleRunSimulation = useCallback(() => {
+    setIsRunning(true);
+    setIsOptimized(false);
+    setProgress(0);
 
-  // --- Idle / Selected ---
-  if (!activeUseCase || appState === 'idle' || appState === 'selected') {
-    return (
-      <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-        <div style={{ color: 'var(--text-muted)', textAlign: 'center' }}>
-          <HeartPulse size={48} opacity={0.3} style={{ margin: '0 auto 16px', display: 'block' }} />
-          <div style={{ fontSize: '0.85rem' }}>
-            {appState === 'selected' ? '待機中: プロンプトを実行してアプリを生成してください' : '待機中: 左側のパネルからユースケースを選択してください'}
-          </div>
-        </div>
-      </div>
-    );
-  }
+    let p = 0;
+    const interval = setInterval(() => {
+      p += Math.random() * 15 + 5;
+      if (p >= 100) {
+        p = 100;
+        clearInterval(interval);
+        setTimeout(() => {
+          setIsRunning(false);
+          setIsOptimized(true);
+          setProgress(0);
+        }, 300);
+      }
+      setProgress(Math.min(p, 100));
+    }, 120);
+  }, []);
 
-  // --- Generating ---
-  if (appState === 'generating') {
-    return (
-      <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ position: 'relative', width: '150px', height: '150px' }}>
-          <div style={{ position: 'absolute', inset: 0, border: '2px dashed var(--quantum-blue)', borderRadius: '50%', animation: 'lp-spin 8s linear infinite' }} />
-          <div style={{ position: 'absolute', inset: '35px', border: `2px solid ${accent}`, borderRadius: '50%', animation: 'lp-spin 2s linear infinite reverse', boxShadow: `0 0 20px ${accentGlow}` }} />
-        </div>
-        <style>{lpStyles}</style>
-      </div>
-    );
-  }
+  const handleReset = useCallback(() => {
+    setIsOptimized(false);
+    setIsRunning(false);
+    setProgress(0);
+    setOptimizationLevel(50);
+    setDataSize(5000);
+    setSelectedNode(null);
+    setUseQuantum(true);
+  }, []);
 
-  // --- Complete: Interactive App ---
-  const bi = activeUseCase.businessImpact;
-  const qc = activeUseCase.quantumComparison;
-  const val = activeUseCase.validation;
-  const db = activeUseCase.dashboard;
+  const getAdjustedValue = (value: string, trend: 'up' | 'down' | 'neutral') => {
+    if (!isOptimized) return value;
+    const match = value.match(/([\d.]+)/);
+    if (!match) return value;
+    const num = parseFloat(match[1]);
+    const qBoost = useQuantum ? 1.15 : 1.0;
+    const factor = (optimizationLevel / 100) * qBoost;
+    const adjusted = trend === 'down'
+      ? num * (1 - factor * 0.25)
+      : num * (1 + factor * 0.3);
+    const decimals = match[1].includes('.') ? match[1].split('.')[1].length : 0;
+    return value.replace(match[1], adjusted.toFixed(decimals));
+  };
+
+  const vizLabels: Record<string, { idle: string; running: string; done: string }> = {
+    recommendation: { idle: '推薦モデル待機',           running: 'パーソナライズ最適化中',     done: '推薦最適化完了' },
+    ticket:         { idle: '価格モデル待機',           running: '動的価格最適化中',           done: '価格最適化完了' },
+    boxoffice:      { idle: '予測モデル待機',           running: '興行予測実行中',             done: '興行予測完了' },
+    music:          { idle: '音響分析待機',             running: 'ヒット予測実行中',           done: 'ヒット予測完了' },
+    matchmaking:    { idle: 'マッチング待機',           running: 'マッチメイキング最適化中',   done: 'マッチング完了' },
+    acoustics:      { idle: '音場モデル待機',           running: '音響最適化実行中',           done: '音響最適化完了' },
+    vfx:            { idle: 'ノード待機',               running: 'レンダリング最適化中',       done: 'レンダ最適化完了' },
+    anime:          { idle: '工程表待機',               running: '制作工程最適化中',           done: '工程最適化完了' },
+    cdn:            { idle: '配信網待機',               running: 'CDN最適化実行中',            done: 'CDN最適化完了' },
+    ad:             { idle: '挿入点分析待機',           running: '広告最適化実行中',           done: '広告最適化完了' },
+    esports:        { idle: '戦略分析待機',             running: '戦略最適化実行中',           done: '戦略最適化完了' },
+    themepark:      { idle: '来場予測待機',             running: '動線最適化実行中',           done: '動線最適化完了' },
+    broadcast:      { idle: '編成データ待機',           running: '編成最適化実行中',           done: '編成最適化完了' },
+    ip:             { idle: 'IP評価待機',               running: 'IP価値分析実行中',           done: 'IP評価完了' },
+    voice:          { idle: '音声モデル待機',           running: '音声合成最適化中',           done: '音声最適化完了' },
+    arvr:           { idle: 'VRモデル待機',             running: 'VR体験最適化中',             done: 'VR最適化完了' },
+    churn:          { idle: 'リスク分析待機',           running: '解約予測実行中',             done: '解約予測完了' },
+    moderation:     { idle: 'スキャン待機',             running: 'コンテンツスキャン中',       done: 'スキャン完了' },
+    metaverse:      { idle: '空間設計待機',             running: 'メタバース最適化中',         done: '空間最適化完了' },
+    nft:            { idle: '市場分析待機',             running: 'NFT分析実行中',              done: 'NFT分析完了' },
+    engagement:     { idle: 'セグメント待機',           running: 'エンゲージメント最適化中',   done: 'エンゲージメント完了' },
+  };
+
+  const getVizLabel = () => {
+    const type = getVizType(activeUseCase.id);
+    const labels = vizLabels[type] || vizLabels.recommendation;
+    if (isRunning) return `${labels.running} ${Math.round(progress)}%`;
+    if (isOptimized) return `${labels.done} (${useQuantum ? '量子' : '古典'})`;
+    return labels.idle;
+  };
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', animation: 'lp-fadeIn 0.5s ease-out' }}>
-      {/* Title Bar */}
-      <div style={{ padding: '8px 14px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', borderBottom: '1px solid var(--border-color)', flexShrink: 0 }}>
-        <HeartPulse size={14} color={accent} />
-        <span style={{ fontWeight: 600 }}>ライブプレビュー</span>
-        <span style={{ marginLeft: 'auto', fontSize: '0.65rem', padding: '2px 8px', borderRadius: '4px', background: optState === 'done' ? accentGlow : 'rgba(255,255,255,0.05)', color: optState === 'done' ? '#000' : 'var(--text-muted)', fontWeight: 600 }}>
-          {optState === 'done' ? 'LIVE' : 'STANDBY'}
-        </span>
+    <div className="preview-container">
+      <div className={`visualization-box ${statusClass} ${isRunning ? 'viz-running' : ''}`}>
+        <VizCanvas
+          vizType={getVizType(activeUseCase.id)}
+          running={isRunning}
+          optimized={isOptimized}
+          progress={progress}
+          optLevel={optimizationLevel}
+          selectedNode={selectedNode}
+          onNodeClick={(id) => setSelectedNode(selectedNode === id ? null : id)}
+        />
+
+        {isRunning && (
+          <div className="progress-bar-wrap">
+            <div className="progress-bar-fill" style={{ width: `${progress}%` }} />
+          </div>
+        )}
+
+        <div className={`viz-overlay ${statusClass}`}>{getVizLabel()}</div>
       </div>
 
-      {/* Scrollable Content */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-
-        {/* ===== DASHBOARD: Before/After ===== */}
-        <div style={sectionStyle}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)' }}>{activeUseCase.title}</span>
+      <div className="control-panel">
+        <div className="control-sliders">
+          <div className="control-group">
+            <label className="control-label">
+              最適化レベル
+              <span className="control-value">{optimizationLevel}%</span>
+            </label>
+            <input
+              type="range" min="10" max="100" value={optimizationLevel}
+              onChange={(e) => { setOptimizationLevel(Number(e.target.value)); setIsOptimized(false); }}
+              className="control-slider"
+              disabled={isRunning}
+            />
           </div>
-
-          {/* Table Header */}
-          <div style={{ display: 'flex', padding: '6px 8px', borderBottom: '1px solid rgba(255,255,255,0.1)', fontSize: '0.6rem', color: 'var(--text-muted)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-            <div style={{ flex: 2 }}>指標</div>
-            <div style={{ flex: 1, textAlign: 'right' }}>処理前</div>
-            <div style={{ flex: 0, width: '24px' }}></div>
-            <div style={{ flex: 1, textAlign: 'right', color: optState === 'done' ? accent : 'var(--text-muted)' }}>
-              {optState === 'done' ? '最適化後' : '処理後'}
-            </div>
+          <div className="control-group">
+            <label className="control-label">
+              データ件数
+              <span className="control-value">{dataSize.toLocaleString()}件</span>
+            </label>
+            <input
+              type="range" min="1000" max="10000" step="500" value={dataSize}
+              onChange={(e) => { setDataSize(Number(e.target.value)); setIsOptimized(false); }}
+              className="control-slider"
+              disabled={isRunning}
+            />
           </div>
-
-          {/* Table Rows */}
-          {db.map((row, i) => (
-            <div key={i} style={{
-              display: 'flex',
-              alignItems: 'center',
-              padding: '8px',
-              borderBottom: '1px solid rgba(255,255,255,0.04)',
-              background: row.highlight && optState === 'done' ? 'rgba(0,255,157,0.05)' : 'transparent',
-              borderLeft: row.highlight && optState === 'done' ? `3px solid ${accent}` : '3px solid transparent',
-              transition: 'all 0.5s ease',
-            }}>
-              <div style={{ flex: 2, fontSize: '0.7rem', color: 'var(--text-muted)' }}>{row.label}</div>
-              <div style={{
-                flex: 1, textAlign: 'right', fontSize: '0.75rem', fontWeight: 500,
-                color: optState === 'done' ? 'rgba(255,255,255,0.4)' : 'var(--text-main)',
-                textDecoration: optState === 'done' ? 'line-through' : 'none',
-                transition: 'all 0.5s ease',
-              }}>
-                {row.before}
-              </div>
-              <div style={{ flex: 0, width: '24px', display: 'flex', justifyContent: 'center' }}>
-                {optState === 'done' && <ArrowRight size={12} color={accent} />}
-              </div>
-              <div style={{
-                flex: 1, textAlign: 'right', fontSize: '0.75rem', fontWeight: 700,
-                color: optState === 'done' ? (row.highlight ? accent : 'var(--quantum-blue)') : 'rgba(255,255,255,0.15)',
-                textShadow: optState === 'done' && row.highlight ? `0 0 10px ${accentGlow}` : 'none',
-                transition: 'all 0.5s ease',
-              }}>
-                {optState === 'done' ? row.after : '--'}
-              </div>
-            </div>
-          ))}
         </div>
 
-        {/* Optimize Button */}
-        {optState === 'ready' && (
-          <button onClick={handleOptimize} style={{
-            background: 'linear-gradient(135deg, var(--quantum-green), var(--quantum-blue))',
-            color: '#000', border: 'none', padding: '14px', borderRadius: '8px',
-            fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', width: '100%',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
-            fontFamily: 'var(--font-sans)', transition: 'all 0.2s',
-          }}
-          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,255,157,0.4)'; }}
-          onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}>
-            <Play size={18} fill="#000" /> 量子最適化を実行
-          </button>
-        )}
-
-        {/* Optimizing Progress */}
-        {optState === 'optimizing' && (
-          <div style={{ ...sectionStyle, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '20px' }}>
-            <div style={{ position: 'relative', width: '60px', height: '60px' }}>
-              <div style={{ position: 'absolute', inset: 0, border: '2px dashed var(--quantum-blue)', borderRadius: '50%', animation: 'lp-spin 4s linear infinite' }} />
-              <div style={{ position: 'absolute', inset: '15px', border: `2px solid ${accent}`, borderRadius: '50%', animation: 'lp-spin 1.5s linear infinite reverse', boxShadow: `0 0 12px ${accentGlow}` }} />
-            </div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--quantum-blue)' }}>量子アニーリング実行中...</div>
-            <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden' }}>
-              <div style={{ height: '100%', background: 'linear-gradient(90deg, var(--quantum-green), var(--quantum-blue))', borderRadius: '2px', animation: 'lp-progress 3s linear forwards' }} />
-            </div>
+        <div className="control-actions">
+          <div className="toggle-group">
+            <button
+              className={`toggle-btn ${useQuantum ? 'active' : ''}`}
+              onClick={() => { setUseQuantum(true); setIsOptimized(false); }}
+              disabled={isRunning}
+            >
+              量子
+            </button>
+            <button
+              className={`toggle-btn ${!useQuantum ? 'active' : ''}`}
+              onClick={() => { setUseQuantum(false); setIsOptimized(false); }}
+              disabled={isRunning}
+            >
+              古典
+            </button>
           </div>
-        )}
 
-        {/* === After optimization: sections appear === */}
-        {optState === 'done' && (
-          <>
-            {/* Completion Banner */}
-            <div style={{ ...sectionStyle, display: 'flex', alignItems: 'center', gap: '12px', padding: '12px' }}>
-              <div style={{ width: '36px', height: '36px', background: `radial-gradient(circle, ${accentGlow}, transparent 70%)`, border: `2px solid ${accent}`, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 0 15px ${accentGlow}`, flexShrink: 0 }}>
-                <CheckCircle2 size={18} color={accent} />
+          <button
+            className={`run-btn ${isRunning ? 'running' : ''}`}
+            onClick={handleRunSimulation}
+            disabled={isRunning}
+          >
+            <Play size={13} />
+            {isRunning ? '実行中...' : 'シミュレーション実行'}
+          </button>
+
+          <button className="reset-btn" onClick={handleReset} disabled={isRunning}>
+            <RotateCcw size={13} />
+            リセット
+          </button>
+        </div>
+      </div>
+
+      <div className="metrics-grid">
+        {activeUseCase.metrics.map((m, idx) => (
+          <div key={idx} className={`metric-card ${statusClass} ${isOptimized ? 'metric-optimized' : ''}`}>
+            <div>
+              <div className="metric-label">{m.label}</div>
+              <div className={`metric-value ${isOptimized ? 'metric-value-updated' : ''}`}>
+                {getAdjustedValue(m.value, m.trend)}
               </div>
-              <div>
-                <div className="text-gradient" style={{ fontSize: '0.95rem', fontWeight: 700 }}>最適化完了 (Vibe 100%)</div>
-                <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: '2px' }}>QUBO求解成功 — 最適パラメータ適用済み</div>
-              </div>
+              {isOptimized && <div className="metric-badge">最適化済</div>}
             </div>
+            <div>{getTrendIcon(m.trend, !!(isActionMode || isOptimized))}</div>
+          </div>
+        ))}
+      </div>
 
-            {/* BUSINESS IMPACT */}
-            <div style={sectionStyle}>
-              <SectionHeader barColor="#f59e0b" label="BUSINESS IMPACT" title="経営インパクト" />
-              <div style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
-                {bi.items.map((item, i) => (
-                  <div key={i} style={{ flex: 1, padding: '8px', background: 'rgba(0,0,0,0.3)', borderRadius: '6px', borderLeft: i === 0 ? `3px solid ${accent}` : '3px solid transparent' }}>
-                    <div style={{ fontSize: '0.55rem', color: 'var(--text-muted)', marginBottom: '3px' }}>{item.label}</div>
-                    <div style={{ fontSize: '0.95rem', fontWeight: 700, color: i === 0 ? accent : i === 1 ? 'var(--quantum-blue)' : '#f59e0b' }}>{item.value}</div>
-                    <div style={{ fontSize: '0.5rem', color: 'var(--text-muted)', marginTop: '2px' }}>{item.detail}</div>
+      <div className="insights-panel">
+        <div className={`insight-card impact-card ${statusClass}`}>
+          <div className="card-header">
+            <Target size={16} className="insight-icon" />
+            <span>経営インパクト (Business Impact)</span>
+          </div>
+          <div className="card-body impact-text">{activeUseCase.businessImpact}</div>
+        </div>
+
+        <div className={`insight-card qvc-card ${statusClass}`}>
+          <div className="card-header">
+            <Zap size={16} className="insight-icon" />
+            <span>量子 vs 古典 - 規模別比較</span>
+          </div>
+          <div className="card-body">
+            {(() => {
+              const cSec = parseToSeconds(activeUseCase.quantumVsClassical.classicalTime);
+              const qSec = parseToSeconds(activeUseCase.quantumVsClassical.quantumTime);
+              const scales = [
+                {
+                  label: '小規模',
+                  sublabel: '~1,000件',
+                  cMult: 0.04,
+                  qMult: 0.18,
+                  classicalComment: '古典計算でも許容範囲内',
+                  quantumComment: '量子優位性は限定的・コスト対効果を要検討',
+                  verdict: '古典で対応可能',
+                  verdictClass: 'verdict-neutral',
+                },
+                {
+                  label: '中規模',
+                  sublabel: '1,000~10,000件',
+                  cMult: 1.0,
+                  qMult: 1.0,
+                  classicalComment: '処理時間が長くなり業務効率への影響が顕在化',
+                  quantumComment: '量子優位性が明確に現れ始める規模',
+                  verdict: '量子優位性が顕在化',
+                  verdictClass: 'verdict-quantum',
+                },
+                {
+                  label: '大規模',
+                  sublabel: '10,000件超',
+                  cMult: 16.0,
+                  qMult: 3.5,
+                  classicalComment: '実用的な時間内での処理はほぼ不可能',
+                  quantumComment: '量子処理が事実上の必須要件',
+                  verdict: '量子処理が必須',
+                  verdictClass: 'verdict-critical',
+                },
+              ];
+              return (
+                <div className="qvc-scales">
+                  {scales.map((s) => {
+                    const cTime = cSec != null ? fmtTime(cSec * s.cMult) : activeUseCase.quantumVsClassical.classicalTime;
+                    const qTime = qSec != null ? fmtTime(qSec * s.qMult) : activeUseCase.quantumVsClassical.quantumTime;
+                    const ratio = (cSec != null && qSec != null && qSec * s.qMult > 0)
+                      ? Math.round((cSec * s.cMult) / (qSec * s.qMult))
+                      : null;
+                    return (
+                      <div key={s.label} className="qvc-scale-block">
+                        <div className="qvc-scale-header">
+                          <span className="qvc-scale-label">{s.label}</span>
+                          <span className="qvc-scale-sublabel">{s.sublabel}</span>
+                          <span className={`qvc-verdict ${s.verdictClass}`}>{s.verdict}</span>
+                        </div>
+                        <div className="qvc-scale-rows">
+                          <div className="qvc-scale-row">
+                            <span className="qvc-scale-type classical-type">古典</span>
+                            <span className="qvc-time classical-time">{cTime}</span>
+                            <span className="qvc-scale-comment">{s.classicalComment}</span>
+                          </div>
+                          <div className="qvc-scale-row">
+                            <span className="qvc-scale-type quantum-type">量子</span>
+                            <span className="qvc-time quantum-time">{qTime}</span>
+                            <span className="qvc-scale-comment">{s.quantumComment}</span>
+                          </div>
+                          {ratio != null && ratio > 1 && (
+                            <div className="qvc-speedup">
+                              量子が <strong>{ratio.toLocaleString()}倍</strong> 高速
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div className="advantage-text" style={{ marginTop: '8px' }}>
+                    {activeUseCase.quantumVsClassical.advantage}
                   </div>
-                ))}
-              </div>
-              <div style={{ padding: '8px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: '6px', fontSize: '0.6rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
-                <span style={{ color: '#f59e0b' }}>💡</span> {bi.summary}
-              </div>
-            </div>
-
-            {/* QUANTUM vs CLASSICAL */}
-            <div style={sectionStyle}>
-              <SectionHeader barColor="var(--quantum-blue)" label="QUANTUM vs CLASSICAL" title="量子 vs 古典計算機" />
-              <div style={{ fontSize: '0.55rem', color: 'var(--text-muted)', marginBottom: '8px' }}>アルゴリズム: {qc.algorithm}</div>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.55rem', marginBottom: '10px' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                    <th style={{ padding: '5px 6px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 500 }}>問題規模</th>
-                    <th style={{ padding: '5px 6px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 500 }}>古典計算機</th>
-                    <th style={{ padding: '5px 6px', textAlign: 'left', color: 'var(--quantum-blue)', fontWeight: 600 }}>量子シミュレーター</th>
-                    <th style={{ padding: '5px 6px', textAlign: 'left', color: accent, fontWeight: 600 }}>量子実機</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {qc.rows.map((row, i) => (
-                    <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                      <td style={{ padding: '5px 6px', color: 'var(--text-muted)' }}>{row.scale}</td>
-                      <td style={{ padding: '5px 6px', color: 'var(--text-main)' }}>{row.classical}</td>
-                      <td style={{ padding: '5px 6px', color: 'var(--quantum-blue)' }}>{row.quantum_sim}</td>
-                      <td style={{ padding: '5px 6px', color: i === 2 ? accent : 'var(--text-muted)', fontWeight: i === 2 ? 600 : 400 }}>{row.quantum_real}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div style={{ padding: '8px', background: 'rgba(0,225,255,0.06)', border: '1px solid rgba(0,225,255,0.15)', borderRadius: '6px', fontSize: '0.55rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
-                <div style={{ color: 'var(--quantum-blue)', fontWeight: 600, marginBottom: '3px' }}>⚡ 量子コンピュータが必要となる条件</div>
-                <div>閾値: {qc.threshold}</div>
-                <div>必要量子ビット数: {qc.qubits}</div>
-                <div style={{ marginTop: '3px' }}>💡 {qc.note}</div>
-              </div>
-            </div>
-
-            {/* VALIDATION */}
-            <div style={sectionStyle}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', userSelect: 'none' }} onClick={() => setValidationOpen(!validationOpen)}>
-                <div style={{ width: '3px', borderRadius: '2px', background: accent, alignSelf: 'stretch', minHeight: '16px' }} />
-                <ShieldCheck size={12} color={accent} />
-                <span style={{ fontSize: '0.55rem', letterSpacing: '1.5px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>VALIDATION</span>
-                <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)' }}>検証・信頼性サマリー</span>
-                <span style={{ marginLeft: 'auto', color: 'var(--text-muted)', fontSize: '0.65rem', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                  {validationOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                  {validationOpen ? '閉じる' : '展開'}
-                </span>
-              </div>
-              {validationOpen && (
-                <div style={{ marginTop: '10px', paddingLeft: '12px', borderLeft: `2px solid ${accent}33`, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  {val.items.map((item, i) => (
-                    <div key={i} style={{ fontSize: '0.6rem', color: 'var(--text-muted)', lineHeight: 1.6, display: 'flex', gap: '5px' }}>
-                      <span style={{ color: accent, flexShrink: 0 }}>✓</span>
-                      <span>{item}</span>
-                    </div>
-                  ))}
                 </div>
-              )}
-            </div>
-          </>
-        )}
-      </div>
+              );
+            })()}
+          </div>
+        </div>
 
-      {/* Footer */}
-      <div style={{ padding: '5px 14px', borderTop: '1px solid var(--border-color)', fontSize: '0.5rem', color: 'var(--text-muted)', textAlign: 'center', flexShrink: 0 }}>
-        ※ デモ用簡易サンプル実装 | 公開アルゴリズムの教育デモ | <span style={{ color: accent }}>利用規約</span> | &copy; 2026 JQCA
+        <div className={`insight-card verify-card ${statusClass}`}>
+          <div className="card-header">
+            <ShieldCheck size={16} className="insight-icon" />
+            <span>検証・信頼性サマリー (Safety & Compliance)</span>
+          </div>
+          <div className="card-body verify-text">{activeUseCase.verificationSummary}</div>
+        </div>
       </div>
-
-      <style>{lpStyles}</style>
     </div>
   );
 };
-
-// --- Sub-components ---
-const SectionHeader: React.FC<{ barColor: string; label: string; title: string }> = ({ barColor, label, title }) => (
-  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-    <div style={{ width: '3px', borderRadius: '2px', background: barColor, alignSelf: 'stretch', minHeight: '16px' }} />
-    <span style={{ fontSize: '0.55rem', letterSpacing: '1.5px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{label}</span>
-    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: barColor }}>{title}</span>
-  </div>
-);
-
-const sectionStyle: React.CSSProperties = {
-  padding: '12px', background: 'rgba(10,14,23,0.8)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px',
-};
-
-const lpStyles = `
-  @keyframes lp-spin { to { transform: rotate(360deg); } }
-  @keyframes lp-fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-  @keyframes lp-progress { from { width: 0%; } to { width: 100%; } }
-`;
 
 export default LivePreview;
