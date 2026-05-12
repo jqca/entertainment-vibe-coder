@@ -7,6 +7,10 @@ export type VizType =
   | 'arvr' | 'churn' | 'moderation' | 'metaverse' | 'nft'
   | 'engagement';
 
+/* Order matters: getVizType() uses id.includes(key) and returns on
+   first match, so longer / more-specific keys MUST come before short
+   substrings that could collide (e.g. 'broadcast' before 'ad',
+   because 'broadcast'.includes('ad') === true). */
 const VIZ_MAP: Record<string, VizType> = {
   'content-recommendation': 'recommendation',
   'recommendation': 'recommendation',
@@ -23,12 +27,12 @@ const VIZ_MAP: Record<string, VizType> = {
   'anime': 'anime',
   'streaming-cdn': 'cdn',
   'cdn': 'cdn',
+  'broadcast': 'broadcast',
   'ad-insertion': 'ad',
   'ad': 'ad',
   'esports': 'esports',
   'theme-park': 'themepark',
   'themepark': 'themepark',
-  'broadcast': 'broadcast',
   'ip-valuation': 'ip',
   'ip': 'ip',
   'voice': 'voice',
